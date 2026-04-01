@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YOUR CO₂ TODAY</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400;1,700&family=DM+Mono:wght@400;500&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --black: #0d0d0d;
+  --white: #fafaf5;
+  --lavender: #ddd4f5;
+  --lavender-mid: #c4b8ed;
+  --blush: #f5d4d4;
+  --blush-mid: #edaeb8;
+  --mint: #d4f0e0;
+  --amber-light: #f5ead4;
+  --amber-mid: #edcc8c;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--white);color:var(--black);font-family:'Libre Baskerville',Georgia,serif;overflow-x:hidden}
+
+/* API BAR */
+.api-bar{background:var(--black);color:var(--white);padding:9px 28px;display:flex;align-items:center;gap:14px;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.06em;flex-wrap:wrap}
+.api-bar label{opacity:.55;text-transform:uppercase;white-space:nowrap}
+.api-bar input{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);color:var(--white);font-family:'DM Mono',monospace;font-size:11px;padding:5px 12px;border-radius:2px;flex:1;min-width:200px;max-width:400px;letter-spacing:.04em}
+.api-bar input:focus{outline:1px solid var(--lavender-mid)}
+.api-bar input::placeholder{opacity:.35}
+.api-note{margin-left:auto;font-size:10px;opacity:.35;white-space:nowrap}
+
+/* MASTHEAD */
+.masthead{border-bottom:4px solid var(--black);padding:0 clamp(20px,6vw,88px);position:relative;overflow:hidden}
+.mast-topbar{display:flex;justify-content:space-between;align-items:center;padding:10px 0 8px;border-bottom:1px solid var(--black);font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;opacity:.5}
+.mast-body{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:22px 0 18px}
+.hero-title{font-family:'Playfair Display',serif;font-weight:900;font-size:clamp(58px,13vw,148px);line-height:.87;letter-spacing:-.025em;text-transform:uppercase;flex:1}
+.hero-title .outline{-webkit-text-stroke:2.5px var(--black);color:transparent;font-style:italic}
+.mast-right{display:flex;flex-direction:column;align-items:flex-end;gap:14px;flex-shrink:0;max-width:260px;padding-bottom:8px}
+.hero-sub{font-family:'Libre Baskerville',serif;font-style:italic;font-size:clamp(13px,1.5vw,17px);line-height:1.6;opacity:.7;text-align:right}
+.globe-badge{width:clamp(90px,12vw,140px);height:clamp(90px,12vw,140px);background:var(--lavender);border:3px solid var(--black);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:clamp(36px,5vw,60px);flex-shrink:0;animation:spin-slow 20s linear infinite}
+@keyframes spin-slow{to{transform:rotate(360deg)}}
+@media(max-width:620px){.mast-right{display:none}}
+
+/* FACT STRIP */
+.fact-strip{display:grid;grid-template-columns:repeat(5,1fr);border-top:3px solid var(--black);border-bottom:3px solid var(--black)}
+@media(max-width:900px){.fact-strip{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:560px){.fact-strip{grid-template-columns:repeat(2,1fr)}}
+.fact-card{padding:22px 18px;border-right:2px solid var(--black);cursor:default;transition:transform .15s,box-shadow .15s}
+.fact-card:last-child{border-right:none}
+.fact-card:hover{transform:translateY(-3px);box-shadow:0 6px 0 var(--black)}
+.fc-1{background:var(--lavender)}.fc-2{background:var(--blush)}.fc-3{background:var(--mint)}.fc-4{background:var(--amber-light)}.fc-5{background:var(--lavender-mid)}
+.fact-icon{font-size:26px;margin-bottom:8px;display:block}
+.fact-text{font-family:'Playfair Display',serif;font-weight:700;font-size:clamp(12px,1.4vw,15px);line-height:1.35}
+.fact-sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;opacity:.45}
+
+/* INPUT SECTION */
+.input-wrap{padding:clamp(32px,5vw,64px) clamp(20px,6vw,88px);display:grid;grid-template-columns:1fr 1fr;gap:clamp(28px,4vw,60px);border-bottom:3px solid var(--black)}
+@media(max-width:700px){.input-wrap{grid-template-columns:1fr;gap:24px}}
+.section-kicker{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;opacity:.45;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.section-kicker::before{content:'';width:18px;height:2px;background:var(--black);display:block}
+.input-headline{font-family:'Playfair Display',serif;font-weight:900;font-size:clamp(26px,3.5vw,42px);line-height:1.1;margin-bottom:14px}
+.input-desc{font-style:italic;font-size:14px;line-height:1.7;opacity:.65;margin-bottom:20px}
+textarea#dayInput{width:100%;height:180px;background:#f0ede5;border:2px solid var(--black);font-family:'Libre Baskerville',serif;font-size:14px;line-height:1.7;padding:16px;resize:vertical;color:var(--black);border-radius:2px;transition:border-color .2s}
+textarea#dayInput:focus{outline:none;border-color:var(--lavender-mid);background:#fff}
+textarea#dayInput::placeholder{opacity:.4;font-style:italic}
+.analyse-btn{margin-top:14px;background:var(--black);color:var(--white);border:3px solid var(--black);font-family:'Playfair Display',serif;font-weight:700;font-size:18px;padding:14px 32px;cursor:pointer;letter-spacing:.02em;transition:background .15s,color .15s,transform .1s;display:flex;align-items:center;gap:10px;border-radius:2px}
+.analyse-btn:hover{background:var(--lavender);color:var(--black);transform:translateY(-1px)}
+.analyse-btn:active{transform:translateY(0)}
+.analyse-btn.loading{opacity:.7;cursor:not-allowed;pointer-events:none}
+.btn-arrow{font-size:22px;transition:transform .2s}
+.analyse-btn:hover .btn-arrow{transform:translateX(4px)}
+.error-box{background:var(--blush);border:2px solid var(--black);border-radius:2px;padding:14px 18px;margin-top:14px;font-size:14px;display:none}
+.input-right{display:flex;flex-direction:column;gap:14px}
+.preview-label{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;opacity:.4;border-bottom:1px solid var(--black);padding-bottom:8px;margin-bottom:4px}
+.preview-card{border:2px solid var(--black);padding:18px 16px;border-radius:2px}
+.preview-card h4{font-family:'Playfair Display',serif;font-weight:700;font-size:15px;margin-bottom:6px}
+.preview-card p{font-size:13px;line-height:1.6;opacity:.7;font-style:italic}
+.preview-card:nth-child(2){background:var(--blush)}
+.preview-card:nth-child(3){background:var(--mint)}
+.preview-card:nth-child(4){background:var(--amber-light)}
+#loadingSection{display:none;padding:clamp(32px,5vw,56px) clamp(20px,6vw,88px);border-bottom:3px solid var(--black);text-align:center}
+.loading-inner{display:inline-flex;flex-direction:column;align-items:center;gap:20px}
+.loading-title{font-family:'Playfair Display',serif;font-size:clamp(22px,3vw,34px);font-weight:900}
+.loading-dots{display:flex;gap:8px}
+.dot{width:12px;height:12px;background:var(--black);border-radius:50%;animation:bounce .8s ease-in-out infinite}
+.dot:nth-child(2){animation-delay:.15s}.dot:nth-child(3){animation-delay:.3s}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.loading-sub{font-style:italic;opacity:.5;font-size:14px}
+
+/* RESULTS */
+#resultsSection{display:none;opacity:0;transform:translateY(24px);transition:opacity .5s,transform .5s}
+#resultsSection.visible{opacity:1;transform:translateY(0)}
+
+/* TOTAL HERO */
+.total-hero{padding:clamp(32px,5vw,60px) clamp(20px,6vw,88px);display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;border-bottom:3px solid var(--black)}
+@media(max-width:700px){.total-hero{grid-template-columns:1fr}}
+.total-left .kicker{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;opacity:.45;margin-bottom:8px}
+.total-number{font-family:'Playfair Display',serif;font-weight:900;font-size:clamp(72px,12vw,130px);line-height:.85;letter-spacing:-.03em}
+.total-unit{font-family:'DM Mono',monospace;font-size:clamp(14px,2vw,20px);letter-spacing:.1em;margin-top:4px;opacity:.6}
+.verdict-badge{display:inline-block;margin-top:16px;padding:8px 18px;border:3px solid var(--black);font-family:'Playfair Display',serif;font-weight:700;font-size:18px;border-radius:2px}
+.verdict-green{background:var(--mint);color:#1a5c38}
+.verdict-amber{background:var(--amber-light);color:#7c4a0e}
+.verdict-red{background:var(--blush);color:#8b1a1a}
+.comparison-line{margin-top:14px;font-style:italic;font-size:15px;opacity:.65;line-height:1.6}
+.total-right{display:flex;justify-content:center;align-items:center}
+#donutChart{max-width:280px;max-height:280px}
+
+/* BREAKDOWN */
+.breakdown-section{padding:clamp(28px,4vw,52px) clamp(20px,6vw,88px);border-bottom:3px solid var(--black)}
+.breakdown-section h2{font-family:'Playfair Display',serif;font-weight:900;font-size:clamp(22px,3vw,34px);margin-bottom:20px;border-bottom:2px solid var(--black);padding-bottom:10px}
+.breakdown-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.breakdown-item{background:#f0ede5;border:2px solid var(--black);border-radius:2px;padding:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;transition:transform .15s}
+.breakdown-item:hover{transform:translateX(3px)}
+.bi-name{font-size:14px;line-height:1.4;font-weight:700}
+.bi-val{font-family:'Playfair Display',serif;font-weight:900;font-size:20px;white-space:nowrap;flex-shrink:0}
+.bi-unit{font-family:'DM Mono',monospace;font-size:9px;opacity:.5;display:block;text-align:right}
+
+/* TIPS */
+.tips-section{padding:clamp(28px,4vw,52px) clamp(20px,6vw,88px);border-bottom:3px solid var(--black)}
+.tips-header{display:flex;align-items:baseline;gap:18px;margin-bottom:24px;border-bottom:2px solid var(--black);padding-bottom:10px}
+.tips-header h2{font-family:'Playfair Display',serif;font-weight:900;font-size:clamp(20px,2.8vw,30px)}
+.tips-header span{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;opacity:.45}
+.tips-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:700px){.tips-grid{grid-template-columns:1fr}}
+.tip-card{border:2px solid var(--black);padding:22px 18px;border-radius:2px;transition:transform .15s,box-shadow .15s;cursor:default}
+.tip-card:hover{transform:translateY(-4px);box-shadow:0 6px 0 var(--black)}
+.tip-icon{font-size:28px;margin-bottom:10px;display:block}
+.tip-title{font-family:'Playfair Display',serif;font-weight:700;font-size:16px;margin-bottom:8px;line-height:1.3}
+.tip-body{font-size:13px;line-height:1.7;opacity:.7;font-style:italic}
+.home-tip:nth-child(1){background:var(--lavender)}
+.home-tip:nth-child(2){background:var(--blush)}
+.home-tip:nth-child(3){background:var(--mint)}
+.area-tip:nth-child(1){background:var(--amber-light)}
+.area-tip:nth-child(2){background:var(--lavender-mid)}
+.area-tip:nth-child(3){background:var(--blush-mid)}
+
+/* TICKER */
+.ticker-footer{background:var(--black);color:var(--white);overflow:hidden;border-top:3px solid var(--black);display:flex;align-items:stretch}
+.ticker-label{background:var(--lavender-mid);color:var(--black);font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;padding:14px 18px;white-space:nowrap;display:flex;align-items:center;font-weight:500;border-right:3px solid var(--white);flex-shrink:0}
+.ticker-track{overflow:hidden;flex:1;display:flex;align-items:center;padding:14px 0}
+.ticker-inner{display:flex;white-space:nowrap;animation:ticker 32s linear infinite;font-family:'Playfair Display',serif;font-size:14px;font-weight:700}
+.ticker-item{padding:0 32px;border-right:1px solid rgba(255,255,255,.2);display:flex;align-items:center;gap:8px}
+.ticker-dot{color:var(--lavender-mid);font-size:18px}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+footer{background:var(--black);color:var(--white);padding:18px clamp(20px,6vw,88px);font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;opacity:.45;text-align:center;border-top:1px solid rgba(255,255,255,.1)}
+</style>
+</head>
+<body>
+
+<!-- API KEY BAR -->
+<div class="api-bar">
+  <label>Anthropic API Key</label>
+  <input type="password" id="apiKey" placeholder="sk-ant-..." autocomplete="off">
+  <span class="api-note">Your key stays in your browser only</span>
+</div>
+
+<!-- MASTHEAD -->
+<header class="masthead">
+  <div class="mast-topbar">
+    <span>Climate Intelligence — Daily Edition</span>
+    <span id="todayDate"></span>
+    <span>Vol. I · Issue 1</span>
+  </div>
+  <div class="mast-body">
+    <h1 class="hero-title">
+      <span>Your</span>
+      <span class="outline">CO₂</span>
+      <span>Today</span>
+    </h1>
+    <div class="mast-right">
+      <p class="hero-sub">Just tell us what you did today.<br>We'll handle the rest.</p>
+      <div class="globe-badge">🌍</div>
+    </div>
+  </div>
+</header>
+
+<!-- FACT STRIP -->
+<div class="fact-strip">
+  <div class="fact-card fc-1">
+    <span class="fact-icon">🍔</span>
+    <p class="fact-text">One beef burger = 2.5 kg CO₂</p>
+    <p class="fact-sub">Food emissions</p>
+  </div>
+  <div class="fact-card fc-2">
+    <span class="fact-icon">📺</span>
+    <p class="fact-text">Streaming 1 hour of video = 36g CO₂</p>
+    <p class="fact-sub">Digital footprint</p>
+  </div>
+  <div class="fact-card fc-3">
+    <span class="fact-icon">✈️</span>
+    <p class="fact-text">Mumbai → Delhi = ~150 kg CO₂ per passenger</p>
+    <p class="fact-sub">Travel emissions</p>
+  </div>
+  <div class="fact-card fc-4">
+    <span class="fact-icon">🇮🇳</span>
+    <p class="fact-text">Average Indian emits 1.9 tonnes CO₂/year</p>
+    <p class="fact-sub">National average</p>
+  </div>
+  <div class="fact-card fc-5">
+    <span class="fact-icon">❄️</span>
+    <p class="fact-text">AC running 8 hours = ~3.2 kg CO₂</p>
+    <p class="fact-sub">Home energy</p>
+  </div>
+</div>
+
+<!-- INPUT SECTION -->
+<div class="input-wrap">
+  <div class="input-left">
+    <div class="section-kicker">Track your impact</div>
+    <h2 class="input-headline">Describe your day</h2>
+    <p class="input-desc">What did you eat, how did you travel, what did you use at home? Write it naturally — we'll figure out the carbon math.</p>
+    <textarea id="dayInput" placeholder="e.g. I drove 15km to college, had a chicken burger for lunch, kept the AC on for 4 hours, streamed Netflix for 2 hours and ordered food online..."></textarea>
+    <div class="error-box" id="errorBox"></div>
+    <button class="analyse-btn" id="analyseBtn" onclick="analyseDay()">
+      Analyse My Day <span class="btn-arrow">→</span>
+    </button>
+  </div>
+  <div class="input-right">
+    <p class="preview-label">Why this matters</p>
+    <div class="preview-card">
+      <h4>🌱 Small choices, big numbers</h4>
+      <p>Your daily habits add up to thousands of kg CO₂ per year. Knowing where it comes from is the first step.</p>
+    </div>
+    <div class="preview-card">
+      <h4>📍 Personalised to you</h4>
+      <p>Unlike generic calculators, we read your actual day and give you tips that match what you specifically did.</p>
+    </div>
+    <div class="preview-card">
+      <h4>⚡ Science-backed estimates</h4>
+      <p>We use standard IPCC and IEA emission factors calibrated for India's energy grid and food systems.</p>
+    </div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loadingSection">
+  <div class="loading-inner">
+    <p class="loading-title">Calculating your footprint...</p>
+    <div class="loading-dots">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+    <p class="loading-sub">Parsing activities · Applying emission factors · Building your report</p>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div id="resultsSection">
+
+  <div class="total-hero">
+    <div class="total-left">
+      <p class="kicker">Your total for today</p>
+      <div class="total-number" id="totalNumber">—</div>
+      <div class="total-unit">kg CO₂ emitted today</div>
+      <div class="verdict-badge" id="verdictBadge">—</div>
+      <p class="comparison-line" id="comparisonLine"></p>
+    </div>
+    <div class="total-right">
+      <canvas id="donutChart"></canvas>
+    </div>
+  </div>
+
+  <div class="breakdown-section">
+    <h2>Activity Breakdown</h2>
+    <div class="breakdown-grid" id="breakdownGrid"></div>
+  </div>
+
+  <div class="tips-section">
+    <div class="tips-header">
+      <h2>At Home — What You Can Do</h2>
+      <span>Personalised tips</span>
+    </div>
+    <div class="tips-grid" id="homeTips"></div>
+  </div>
+
+  <div class="tips-section">
+    <div class="tips-header">
+      <h2>In Your Area — Local Actions</h2>
+      <span>Community tips</span>
+    </div>
+    <div class="tips-grid" id="areaTips"></div>
+  </div>
+
+</div>
+
+<!-- TICKER FOOTER -->
+<div class="ticker-footer">
+  <div class="ticker-label">Climate Facts</div>
+  <div class="ticker-track">
+    <div class="ticker-inner" id="tickerInner"></div>
+  </div>
+</div>
+
+<footer>CO₂ Tracker · Emission factors based on IPCC &amp; IEA data · For awareness purposes only · 2025</footer>
+
+<script>
+// Date in masthead
+document.getElementById('todayDate').textContent = new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+// Build ticker
+const tickerFacts = [
+  "🌡️ The last decade was the hottest on record",
+  "🌊 Sea levels are rising ~3.7mm per year globally",
+  "🌲 18 million acres of forest are lost every year",
+  "☀️ Solar power costs have dropped 90% in a decade",
+  "🚗 Transport accounts for 16% of global emissions",
+  "🥩 Meat and dairy cause 14.5% of global emissions",
+  "💡 Switching to LEDs cuts lighting energy use by 75%",
+  "🏠 Buildings are responsible for ~40% of energy use worldwide",
+  "🔋 Electric vehicles emit 50–70% less CO₂ over their lifetime",
+  "🌾 Eating plant-based one day per week saves ~530kg CO₂/year",
+];
+const ti = document.getElementById('tickerInner');
+[...tickerFacts,...tickerFacts].forEach(f => {
+  const el = document.createElement('span');
+  el.className = 'ticker-item';
+  el.innerHTML = `<span class="ticker-dot">◆</span>${f}`;
+  ti.appendChild(el);
+});
+
+let chartInstance = null;
+
+async function analyseDay() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const text = document.getElementById('dayInput').value.trim();
+  const errorBox = document.getElementById('errorBox');
+  const btn = document.getElementById('analyseBtn');
+
+  errorBox.style.display = 'none';
+  if (!apiKey) { showError('Please enter your Anthropic API key at the top.'); return; }
+  if (text.length < 20) { showError('Please describe your day in a bit more detail.'); return; }
+
+  btn.classList.add('loading');
+  btn.innerHTML = 'Analysing... <span class="btn-arrow">⏳</span>';
+  document.getElementById('loadingSection').style.display = 'block';
+  document.getElementById('resultsSection').style.display = 'none';
+  document.getElementById('resultsSection').classList.remove('visible');
+
+  const systemPrompt = `You are a carbon footprint analyst. The user will describe their day in plain English.
+
+Your job:
+1. Parse every activity mentioned (food, travel, home appliances, digital usage, shopping, etc.)
+2. If quantities are vague or not stated, infer reasonable typical amounts
+3. Calculate CO2 emissions for each activity using standard IPCC/IEA emission factors relevant to India
+4. Return ONLY a raw JSON object — no markdown, no code fences, no explanation, no preamble, no sign-off
+
+The JSON must follow this exact structure:
+{
+  "activities": [
+    { "name": "string describing activity", "co2_kg": number }
+  ],
+  "total_co2_kg": number,
+  "top_category": "string",
+  "home_tips": [
+    { "title": "short title", "body": "1-2 sentence tip", "icon": "single emoji" },
+    { "title": "short title", "body": "1-2 sentence tip", "icon": "single emoji" },
+    { "title": "short title", "body": "1-2 sentence tip", "icon": "single emoji" }
+  ],
+  "area_tips": [
+    { "title": "short title", "body": "1-2 sentence tip", "icon": "single emoji" },
+    { "title": "short title", "body": "1-2 sentence tip", "icon": "single emoji" },
+    { "title": "short title", "body": "1-2 sentence tip", "icon": "single emoji" }
+  ]
+}
+
+Rules:
+- Respond with ONLY the JSON object, nothing else
+- co2_kg values must be plain numbers, not strings
+- Home tips must be specifically based on what the user actually did today
+- Area tips should be practical local community actions relevant to India
+- Do not mention any AI, model, tool, or assistant in the output`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: text }]
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const raw = data.content.map(b => b.type === 'text' ? b.text : '').join('').trim();
+    const clean = raw.replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(clean);
+    renderResults(parsed);
+
+  } catch(e) {
+    showError('Something went wrong: ' + e.message);
+  } finally {
+    btn.classList.remove('loading');
+    btn.innerHTML = 'Analyse My Day <span class="btn-arrow">→</span>';
+    document.getElementById('loadingSection').style.display = 'none';
+  }
+}
+
+function showError(msg) {
+  const box = document.getElementById('errorBox');
+  box.textContent = '⚠ ' + msg;
+  box.style.display = 'block';
+}
+
+function renderResults(data) {
+  const total = parseFloat(data.total_co2_kg) || 0;
+
+  document.getElementById('totalNumber').textContent = total.toFixed(1);
+
+  const badge = document.getElementById('verdictBadge');
+  badge.className = 'verdict-badge';
+  if (total < 5) {
+    badge.classList.add('verdict-green'); badge.textContent = '✓ Low Impact Day';
+  } else if (total <= 15) {
+    badge.classList.add('verdict-amber'); badge.textContent = '⚡ Moderate Impact';
+  } else {
+    badge.classList.add('verdict-red'); badge.textContent = '▲ High Impact Day';
+  }
+
+  const kmEq = Math.round(total / 0.21);
+  const burgersEq = (total / 2.5).toFixed(1);
+  document.getElementById('comparisonLine').textContent =
+    `That's roughly equivalent to driving ${kmEq} km, or eating ${burgersEq} beef burgers.`;
+
+  const acts = data.activities || [];
+  const labels = acts.map(a => a.name);
+  const vals = acts.map(a => parseFloat(a.co2_kg) || 0);
+  const palette = ['#ddd4f5','#f5d4d4','#d4f0e0','#f5ead4','#c4b8ed','#edaeb8','#a9e8b8','#edcc8c','#b8a9e8','#e8b8b8'];
+
+  if (chartInstance) chartInstance.destroy();
+  const ctx = document.getElementById('donutChart').getContext('2d');
+  chartInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: vals,
+        backgroundColor: palette.slice(0, vals.length),
+        borderColor: '#0d0d0d',
+        borderWidth: 2,
+        hoverOffset: 6
+      }]
+    },
+    options: {
+      cutout: '62%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { font: { family: "'DM Mono', monospace", size: 10 }, padding: 12, boxWidth: 12 }
+        },
+        tooltip: {
+          callbacks: { label: ctx => ` ${ctx.parsed.toFixed(2)} kg CO₂` }
+        }
+      }
+    }
+  });
+
+  const grid = document.getElementById('breakdownGrid');
+  grid.innerHTML = '';
+  acts.forEach(a => {
+    const d = document.createElement('div');
+    d.className = 'breakdown-item';
+    d.innerHTML = `<span class="bi-name">${a.name}</span>
+      <div><span class="bi-val">${parseFloat(a.co2_kg).toFixed(2)}</span><span class="bi-unit">kg CO₂</span></div>`;
+    grid.appendChild(d);
+  });
+
+  const homeCont = document.getElementById('homeTips');
+  homeCont.innerHTML = '';
+  (data.home_tips || []).forEach(t => {
+    const c = document.createElement('div');
+    c.className = 'tip-card home-tip';
+    c.innerHTML = `<span class="tip-icon">${t.icon || '🌱'}</span>
+      <h3 class="tip-title">${t.title}</h3>
+      <p class="tip-body">${t.body}</p>`;
+    homeCont.appendChild(c);
+  });
+
+  const areaCont = document.getElementById('areaTips');
+  areaCont.innerHTML = '';
+  (data.area_tips || []).forEach(t => {
+    const c = document.createElement('div');
+    c.className = 'tip-card area-tip';
+    c.innerHTML = `<span class="tip-icon">${t.icon || '🌍'}</span>
+      <h3 class="tip-title">${t.title}</h3>
+      <p class="tip-body">${t.body}</p>`;
+    areaCont.appendChild(c);
+  });
+
+  const rs = document.getElementById('resultsSection');
+  rs.style.display = 'block';
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    rs.classList.add('visible');
+    rs.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }));
+}
+
+document.getElementById('dayInput').addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'Enter') analyseDay();
+});
+</script>
+</body>
+</html>
